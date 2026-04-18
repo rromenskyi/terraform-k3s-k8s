@@ -147,7 +147,9 @@ No modules.
 | [helm_release.traefik](https://registry.terraform.io/providers/hashicorp/helm/latest/docs/resources/release) | resource |
 | [kubernetes_ingress_class_v1.traefik](https://registry.terraform.io/providers/hashicorp/kubernetes/latest/docs/resources/ingress_class_v1) | resource |
 | [kubernetes_ingress_v1.grafana](https://registry.terraform.io/providers/hashicorp/kubernetes/latest/docs/resources/ingress_v1) | resource |
+| [kubernetes_limit_range_v1.namespaces](https://registry.terraform.io/providers/hashicorp/kubernetes/latest/docs/resources/limit_range_v1) | resource |
 | [kubernetes_namespace_v1.namespaces](https://registry.terraform.io/providers/hashicorp/kubernetes/latest/docs/resources/namespace_v1) | resource |
+| [kubernetes_resource_quota_v1.namespaces](https://registry.terraform.io/providers/hashicorp/kubernetes/latest/docs/resources/resource_quota_v1) | resource |
 | [kubernetes_stateful_set_v1.ops](https://registry.terraform.io/providers/hashicorp/kubernetes/latest/docs/resources/stateful_set_v1) | resource |
 | [null_resource.k3s_install](https://registry.terraform.io/providers/hashicorp/null/latest/docs/resources/resource) | resource |
 | [random_password.grafana](https://registry.terraform.io/providers/hashicorp/random/latest/docs/resources/password) | resource |
@@ -164,6 +166,7 @@ No modules.
 | <a name="input_dns_ip"></a> [dns\_ip](#input\_dns\_ip) | IP address for CoreDNS (must be inside service\_cidr) | `string` | `"100.64.0.10"` | no |
 | <a name="input_enable_cert_manager"></a> [enable\_cert\_manager](#input\_enable\_cert\_manager) | Deploy cert-manager + Let's Encrypt ClusterIssuers | `bool` | `true` | no |
 | <a name="input_enable_monitoring"></a> [enable\_monitoring](#input\_enable\_monitoring) | Deploy Prometheus + Grafana via kube-prometheus-stack | `bool` | `true` | no |
+| <a name="input_enable_namespace_limits"></a> [enable\_namespace\_limits](#input\_enable\_namespace\_limits) | Apply a default `ResourceQuota` and `LimitRange` to each module-managed namespace. Disable only if you enforce quotas out-of-band. | `bool` | `true` | no |
 | <a name="input_enable_traefik"></a> [enable\_traefik](#input\_enable\_traefik) | Deploy Traefik as Ingress controller via Helm | `bool` | `true` | no |
 | <a name="input_enable_traefik_dashboard"></a> [enable\_traefik\_dashboard](#input\_enable\_traefik\_dashboard) | Expose the Traefik dashboard via IngressRoute | `bool` | `true` | no |
 | <a name="input_k3s_channel"></a> [k3s\_channel](#input\_k3s\_channel) | k3s release channel (stable, latest, v1.31, etc). Only used when kubernetes\_version is empty. | `string` | `"stable"` | no |
@@ -172,8 +175,10 @@ No modules.
 | <a name="input_kubernetes_version"></a> [kubernetes\_version](#input\_kubernetes\_version) | Kubernetes version for k3s (for example `v1.31.4+k3s1`). Empty string means `latest` from the selected channel. | `string` | `""` | no |
 | <a name="input_letsencrypt_email"></a> [letsencrypt\_email](#input\_letsencrypt\_email) | Email address registered with Let's Encrypt (required when cert-manager is enabled) | `string` | `"admin@example.com"` | no |
 | <a name="input_namespace"></a> [namespace](#input\_namespace) | Kubernetes namespace for the demo workload | `string` | `"default"` | no |
+| <a name="input_namespace_pod_security_level"></a> [namespace\_pod\_security\_level](#input\_namespace\_pod\_security\_level) | Pod Security Standards level applied to module-managed namespaces (enforce + audit + warn). `baseline` is a safe default for most workloads. `restricted` is the strictest and may break Helm charts that require privileged pods (kube-prometheus-stack's node-exporter, for example). `privileged` effectively disables enforcement. | `string` | `"baseline"` | no |
 | <a name="input_namespaces"></a> [namespaces](#input\_namespaces) | Additional namespaces to create | `list(string)` | ```[ "ops", "monitoring" ]``` | no |
 | <a name="input_ops_image"></a> [ops\_image](#input\_ops\_image) | Container image for the ops demo workload | `string` | `"alpine:3.20"` | no |
+| <a name="input_ops_storage_class_name"></a> [ops\_storage\_class\_name](#input\_ops\_storage\_class\_name) | StorageClass used by the ops StatefulSet's PVC. Default matches k3s' built-in `local-path-provisioner`. Set to `null` to rely on the cluster default StorageClass, or pin to a class you install yourself. | `string` | `"local-path"` | no |
 | <a name="input_pod_cidr"></a> [pod\_cidr](#input\_pod\_cidr) | CIDR range for Pods | `string` | `"100.72.0.0/13"` | no |
 | <a name="input_service_cidr"></a> [service\_cidr](#input\_service\_cidr) | CIDR range for Kubernetes Services (ClusterIP) | `string` | `"100.64.0.0/13"` | no |
 | <a name="input_ssh_host"></a> [ssh\_host](#input\_ssh\_host) | Host where k3s will be installed. Use `127.0.0.1` for a local install (the loopback SSH path keeps the bootstrap identical for local and remote targets). | `string` | `"127.0.0.1"` | no |

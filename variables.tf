@@ -201,3 +201,9 @@ variable "ops_image" {
   type        = string
   default     = "alpine:3.20"
 }
+
+variable "ops_storage_class_name" {
+  description = "StorageClass used by the ops StatefulSet's PVC. Default matches k3s' built-in `local-path-provisioner`. Set to `null` to rely on the cluster default StorageClass, or pin to a class you install yourself."
+  type        = string
+  default     = "local-path"
+}
