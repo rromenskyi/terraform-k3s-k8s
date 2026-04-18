@@ -77,7 +77,7 @@ resource "kubernetes_ingress_v1" "grafana" {
   spec {
     ingress_class_name = "traefik"
     rule {
-      host = "grafana.localhost"
+      host = "grafana.${var.base_domain}"
       http {
         path {
           path      = "/"

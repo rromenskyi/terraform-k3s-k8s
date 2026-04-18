@@ -88,17 +88,22 @@ output "ingress_class" {
 
 output "grafana_url" {
   description = "Grafana URL (resolves against the Traefik ingress; add it to /etc/hosts or your DNS)"
-  value       = var.enable_monitoring ? "https://grafana.localhost" : null
+  value       = var.enable_monitoring ? "https://grafana.${var.base_domain}" : null
 }
 
 output "grafana_credentials" {
   description = "Grafana login credentials (password is randomly generated and kept in Terraform state)"
   value = var.enable_monitoring ? {
-    url      = "https://grafana.localhost"
+    url      = "https://grafana.${var.base_domain}"
     username = "admin"
     password = random_password.grafana["enabled"].result
   } : null
   sensitive = true
+}
+
+output "traefik_dashboard_url" {
+  description = "Traefik dashboard URL (if enabled)"
+  value       = var.enable_traefik && var.enable_traefik_dashboard ? "http://traefik.${var.base_domain}" : null
 }
 
 output "access_instructions" {

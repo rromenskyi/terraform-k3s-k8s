@@ -159,6 +159,7 @@ No modules.
 
 | Name | Description | Type | Default | Required |
 | ---- | ----------- | ---- | ------- | :------: |
+| <a name="input_base_domain"></a> [base\_domain](#input\_base\_domain) | Base domain used to derive default hostnames for Traefik dashboard (`traefik.<base>`) and Grafana (`grafana.<base>`). Defaults to `localhost` for local k3s usage; set to a real domain (e.g. `dev.example.com`) for remote access. | `string` | `"localhost"` | no |
 | <a name="input_cert_manager_version"></a> [cert\_manager\_version](#input\_cert\_manager\_version) | cert-manager Helm chart version | `string` | `"v1.16.1"` | no |
 | <a name="input_cluster_name"></a> [cluster\_name](#input\_cluster\_name) | Logical name of the k3s cluster (used in labels and kubeconfig context) | `string` | `"tf-local"` | no |
 | <a name="input_cni"></a> [cni](#input\_cni) | CNI to use. `flannel` uses the k3s built-in backend. `none` disables flannel so a third-party CNI (calico, cilium) can be installed separately. | `string` | `"flannel"` | no |
@@ -210,5 +211,6 @@ No modules.
 | <a name="output_ops_statefulset_name"></a> [ops\_statefulset\_name](#output\_ops\_statefulset\_name) | Name of the ops StatefulSet (if created) |
 | <a name="output_pod_cidr"></a> [pod\_cidr](#output\_pod\_cidr) | Configured Pod CIDR |
 | <a name="output_service_cidr"></a> [service\_cidr](#output\_service\_cidr) | Configured Service CIDR |
+| <a name="output_traefik_dashboard_url"></a> [traefik\_dashboard\_url](#output\_traefik\_dashboard\_url) | Traefik dashboard URL (if enabled) |
 | <a name="output_traefik_enabled"></a> [traefik\_enabled](#output\_traefik\_enabled) | Whether Traefik is enabled |
 <!-- END_TF_DOCS -->
