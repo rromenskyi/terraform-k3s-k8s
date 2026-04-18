@@ -37,6 +37,12 @@ variable "k3s_extra_args" {
   default     = []
 }
 
+variable "install_k3s" {
+  description = "Whether this module installs k3s on the target host. Set to `false` to adopt an existing k3s service installed out-of-band (e.g. by `curl -sfL https://get.k3s.io | sh -` run manually or by a configuration-management tool). When false, the module skips the installer and the uninstaller, just fetches the kubeconfig, and trusts that the existing k3s config is compatible — the `service_cidr`, `pod_cidr`, `dns_ip`, `k3s_disable`, and `k3s_extra_args` variables become informational."
+  type        = bool
+  default     = true
+}
+
 # --------------------------------------------------------------------------
 # SSH connection to the target host (use 127.0.0.1 for a local install)
 # --------------------------------------------------------------------------
@@ -180,14 +186,25 @@ variable "cert_manager_version" {
   default     = "v1.16.1"
 }
 
+variable "kube_prometheus_stack_version" {
+  description = "kube-prometheus-stack Helm chart version"
+  type        = string
+  default     = "70.0.0"
+}
+
 variable "letsencrypt_email" {
-  description = "Email address registered with Let's Encrypt (required when cert-manager is enabled)"
+  description = "Email address registered with Let's Encrypt (required when cert-manager is enabled). Must be a real mailbox — Let's Encrypt rate-limits RFC-2606 reserved domains (example.com, example.org, example.net, example.invalid, test, localhost) and does not issue certificates to them."
   type        = string
   default     = "admin@example.com"
 
   validation {
     condition     = can(regex("^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$", var.letsencrypt_email))
     error_message = "letsencrypt_email must be a valid email address."
+  }
+
+  validation {
+    condition     = !can(regex("@(example\\.(com|org|net|invalid)|test|localhost)$", var.letsencrypt_email))
+    error_message = "letsencrypt_email must not use an RFC-2606 reserved domain (example.com, example.org, example.net, example.invalid, test, localhost) — Let's Encrypt rejects those."
   }
 }
 

@@ -38,4 +38,11 @@ resource "helm_release" "cluster_issuers" {
       letsencrypt_email = var.letsencrypt_email
     })
   ]
+
+  lifecycle {
+    precondition {
+      condition     = var.enable_traefik
+      error_message = "Let's Encrypt ClusterIssuers require Traefik — the HTTP-01 solver template hardcodes ingress class 'traefik'. Set enable_traefik = true or disable cert-manager."
+    }
+  }
 }

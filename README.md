@@ -33,6 +33,31 @@ Platform components included:
 - Automatic namespace provisioning
 - Demo `ops` StatefulSet exercising the built-in `local-path-provisioner`
 
+## Adopting a Pre-Installed k3s (`install_k3s = false`)
+
+If k3s is already running on the target host — installed manually via `curl -sfL https://get.k3s.io | sh -`, baked into a VM image, or managed by configuration tooling outside Terraform — set `install_k3s = false` and this module skips the bootstrap:
+
+```hcl
+module "k3s" {
+  source = "github.com/rromenskyi/terraform-k3s-k8s"
+
+  install_k3s          = false
+  cluster_name         = "home-lab"
+  ssh_host             = "10.0.0.5"
+  ssh_user             = "ops"
+  ssh_private_key_path = "~/.ssh/id_ed25519"
+
+  letsencrypt_email = "you@yourdomain.example"
+}
+```
+
+Behavior in this mode:
+
+- The installer (`curl | sh`) is NOT run.
+- The module still SSHes in, waits for `/etc/rancher/k3s/k3s.yaml` and for every node to report `Ready`, then fetches the kubeconfig. This is both a health check and a precondition for the platform layer (Traefik, cert-manager, monitoring, namespaces) that follows.
+- `terraform destroy` does NOT run `k3s-uninstall.sh`. The module only removes what it created (platform Helm releases, namespaces, fetched kubeconfig). The k3s service itself stays intact.
+- Cluster-shape variables — `service_cidr`, `pod_cidr`, `dns_ip`, `cni`, `k3s_disable`, `k3s_extra_args`, `kubernetes_version`, `k3s_channel` — become **informational**. They are not enforced against the existing installation; the operator is responsible for ensuring the adopted k3s is compatible.
+
 ## Consumer Provider Wiring
 
 Downstream `kubernetes` and `helm` providers in the consuming root stack **must** be wired through `config_path` — not inline `host`/`client_certificate`/`cluster_ca_certificate` attributes — because the cluster's certs are only materialized after the `null_resource.k3s_install` provisioner runs:
@@ -126,7 +151,7 @@ See [CHANGELOG.md](CHANGELOG.md) for detailed version history.
 | Name | Version |
 | ---- | ------- |
 | <a name="requirement_terraform"></a> [terraform](#requirement\_terraform) | >= 1.5.0 |
-| <a name="requirement_helm"></a> [helm](#requirement\_helm) | ~> 2.0 |
+| <a name="requirement_helm"></a> [helm](#requirement\_helm) | ~> 2.17 |
 | <a name="requirement_kubernetes"></a> [kubernetes](#requirement\_kubernetes) | ~> 2.0 |
 | <a name="requirement_local"></a> [local](#requirement\_local) | ~> 2.5 |
 | <a name="requirement_null"></a> [null](#requirement\_null) | ~> 3.2 |
@@ -179,11 +204,13 @@ No modules.
 | <a name="input_enable_namespace_limits"></a> [enable\_namespace\_limits](#input\_enable\_namespace\_limits) | Apply a default `ResourceQuota` and `LimitRange` to each module-managed namespace. Disable only if you enforce quotas out-of-band. | `bool` | `true` | no |
 | <a name="input_enable_traefik"></a> [enable\_traefik](#input\_enable\_traefik) | Deploy Traefik as Ingress controller via Helm | `bool` | `true` | no |
 | <a name="input_enable_traefik_dashboard"></a> [enable\_traefik\_dashboard](#input\_enable\_traefik\_dashboard) | Expose the Traefik dashboard via IngressRoute | `bool` | `true` | no |
+| <a name="input_install_k3s"></a> [install\_k3s](#input\_install\_k3s) | Whether this module installs k3s on the target host. Set to `false` to adopt an existing k3s service installed out-of-band (e.g. by `curl -sfL https://get.k3s.io | sh -` run manually or by a configuration-management tool). When false, the module skips the installer and the uninstaller, just fetches the kubeconfig, and trusts that the existing k3s config is compatible — the `service_cidr`, `pod_cidr`, `dns_ip`, `k3s_disable`, and `k3s_extra_args` variables become informational. | `bool` | `true` | no |
 | <a name="input_k3s_channel"></a> [k3s\_channel](#input\_k3s\_channel) | k3s release channel (stable, latest, v1.31, etc). Only used when kubernetes\_version is empty. | `string` | `"stable"` | no |
 | <a name="input_k3s_disable"></a> [k3s\_disable](#input\_k3s\_disable) | List of built-in k3s components to disable. `traefik` is always disabled by this module because Traefik is managed via Helm. | `list(string)` | ```[ "traefik" ]``` | no |
 | <a name="input_k3s_extra_args"></a> [k3s\_extra\_args](#input\_k3s\_extra\_args) | Additional raw arguments appended to the k3s server command (escape hatch for uncommon flags). | `list(string)` | `[]` | no |
+| <a name="input_kube_prometheus_stack_version"></a> [kube\_prometheus\_stack\_version](#input\_kube\_prometheus\_stack\_version) | kube-prometheus-stack Helm chart version | `string` | `"70.0.0"` | no |
 | <a name="input_kubernetes_version"></a> [kubernetes\_version](#input\_kubernetes\_version) | Kubernetes version for k3s (for example `v1.31.4+k3s1`). Empty string means `latest` from the selected channel. | `string` | `""` | no |
-| <a name="input_letsencrypt_email"></a> [letsencrypt\_email](#input\_letsencrypt\_email) | Email address registered with Let's Encrypt (required when cert-manager is enabled) | `string` | `"admin@example.com"` | no |
+| <a name="input_letsencrypt_email"></a> [letsencrypt\_email](#input\_letsencrypt\_email) | Email address registered with Let's Encrypt (required when cert-manager is enabled). Must be a real mailbox — Let's Encrypt rate-limits RFC-2606 reserved domains (example.com, example.org, example.net, example.invalid, test, localhost) and does not issue certificates to them. | `string` | `"admin@example.com"` | no |
 | <a name="input_namespace"></a> [namespace](#input\_namespace) | Kubernetes namespace for the demo workload | `string` | `"default"` | no |
 | <a name="input_namespace_pod_security_level"></a> [namespace\_pod\_security\_level](#input\_namespace\_pod\_security\_level) | Pod Security Standards level applied to module-managed namespaces (enforce + audit + warn). `baseline` is a safe default for most workloads. `restricted` is the strictest and may break Helm charts that require privileged pods (kube-prometheus-stack's node-exporter, for example). `privileged` effectively disables enforcement. | `string` | `"baseline"` | no |
 | <a name="input_namespaces"></a> [namespaces](#input\_namespaces) | Additional namespaces to create | `list(string)` | ```[ "ops", "monitoring" ]``` | no |

@@ -60,6 +60,9 @@ resource "null_resource" "k3s_install" {
     ssh_user        = var.ssh_user
     ssh_key_path    = var.ssh_private_key_path
     kubeconfig_path = local.kubeconfig_path
+    # Captured so the destroy provisioner knows whether this module owns the
+    # k3s install and may therefore run the uninstaller.
+    install_k3s = tostring(var.install_k3s)
   }
 
   connection {
@@ -74,10 +77,15 @@ resource "null_resource" "k3s_install" {
   # Install k3s server and wait until the API responds. The create-time
   # provisioner can reference locals directly; only destroy-time provisioners
   # are restricted to `self.*`.
+  #
+  # When `var.install_k3s = false` the installer step is skipped and this
+  # module adopts an existing k3s service on the host. The wait steps still
+  # run — they verify the pre-installed k3s is actually healthy before the
+  # kubeconfig fetch and the rest of the plan proceeds.
   provisioner "remote-exec" {
     inline = [
       "set -euo pipefail",
-      local.k3s_install_command,
+      var.install_k3s ? local.k3s_install_command : "echo 'install_k3s=false; adopting pre-installed k3s on this host'",
       # Installer returns once systemd unit is active; give the apiserver a moment.
       "until sudo test -s /etc/rancher/k3s/k3s.yaml; do sleep 1; done",
       "sudo k3s kubectl wait --for=condition=Ready node --all --timeout=120s",
@@ -115,8 +123,12 @@ resource "null_resource" "k3s_install" {
   }
 
   # Run the official k3s uninstaller on destroy, then drop the local kubeconfig.
-  # `on_failure = continue` is mandatory here: if the target host is offline
-  # or the SSH identity has rotated, a blocking destroy would hang for the
+  # Only when this module owned the install — `install_k3s=false` means the
+  # user adopted a pre-existing k3s service, and the module must not remove
+  # something it did not create.
+  #
+  # `on_failure = continue` is mandatory: if the target host is offline or the
+  # SSH identity has rotated, a blocking destroy would hang for the
   # connection timeout and then fail, leaving the state stuck. Continue on
   # failure so that `terraform destroy` always finishes; operators can clean
   # up a stranded k3s install on the host manually if needed.
@@ -124,7 +136,7 @@ resource "null_resource" "k3s_install" {
     when       = destroy
     on_failure = continue
     inline = [
-      "if [ -x /usr/local/bin/k3s-uninstall.sh ]; then sudo /usr/local/bin/k3s-uninstall.sh; fi",
+      "if [ \"${self.triggers.install_k3s}\" = \"true\" ] && [ -x /usr/local/bin/k3s-uninstall.sh ]; then sudo /usr/local/bin/k3s-uninstall.sh; fi",
     ]
   }
 
