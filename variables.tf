@@ -139,6 +139,17 @@ variable "namespace" {
   default     = "default"
 }
 
+variable "base_domain" {
+  description = "Base domain used to derive default hostnames for Traefik dashboard (`traefik.<base>`) and Grafana (`grafana.<base>`). Defaults to `localhost` for local k3s usage; set to a real domain (e.g. `dev.example.com`) for remote access."
+  type        = string
+  default     = "localhost"
+
+  validation {
+    condition     = can(regex("^[a-z0-9]([a-z0-9.-]*[a-z0-9])?$", var.base_domain))
+    error_message = "base_domain must be a valid DNS label sequence (lowercase alphanumerics, dots, hyphens)."
+  }
+}
+
 variable "enable_traefik" {
   description = "Deploy Traefik as Ingress controller via Helm"
   type        = bool
