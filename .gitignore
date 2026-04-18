@@ -1,0 +1,49 @@
+# Terraform
+.terraform/
+.terraform.lock.hcl
+*.tfstate
+*.tfstate.backup
+*.tfvars
+crash.log
+terraform.tfstate*
+
+# Sensitive files
+.env
+!.env.example
+*.pem
+*.key
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Editor
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Local assistant/internal directories
+.grok/cache/
+.grok/sessions/
+.grok/memory/
+.grok/settings.json
+
+# Assistant skills we intentionally commit
+!skills/
+!.grok/skills/
+!AGENT.md
+!ENGINEER.md
+!CODING_STANDARDS.md
+
+# Module specific
+tf
+tfstate-*
+
+# Examples
+examples/*/terraform.tfstate
+examples/*/.terraform/
+examples/*/crash.log
+
+# Local scratch notes
+docs.md
