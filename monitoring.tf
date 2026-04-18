@@ -27,25 +27,9 @@ resource "helm_release" "monitoring" {
     value = "true"
   }
 
-  set {
-    name  = "grafana.ingress.enabled"
-    value = "true"
-  }
-
-  set {
-    name  = "grafana.ingress.ingressClassName"
-    value = "traefik"
-  }
-
-  set {
-    name  = "grafana.ingress.hosts[0]"
-    value = "grafana.localhost"
-  }
-
-  set {
-    name  = "grafana.ingress.tls[0].hosts[0]"
-    value = "grafana.localhost"
-  }
+  # Grafana's chart-side ingress is left disabled on purpose. The Ingress
+  # exposing grafana.localhost is managed below as `kubernetes_ingress_v1.grafana`,
+  # which carries the Traefik-specific router annotations the chart would not.
 
   set {
     name  = "prometheus.prometheusSpec.serviceMonitorSelectorNilUsesHelmValues"
