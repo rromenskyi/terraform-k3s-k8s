@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-04-18
+
 ### Added
 - `install_k3s` variable (default: `true`). Setting to `false` adopts a pre-installed k3s service on the target host: the installer and uninstaller are skipped, the module only fetches the kubeconfig and converges the platform layer. Cluster-shape variables become informational in this mode
 - `kube_prometheus_stack_version` variable (default: `"70.0.0"`). Monitoring chart version is no longer hardcoded — consistent with `traefik_version` and `cert_manager_version`
