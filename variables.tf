@@ -116,6 +116,23 @@ variable "namespaces" {
   default     = ["ops", "monitoring"]
 }
 
+variable "namespace_pod_security_level" {
+  description = "Pod Security Standards level applied to module-managed namespaces (enforce + audit + warn). `baseline` is a safe default for most workloads. `restricted` is the strictest and may break Helm charts that require privileged pods (kube-prometheus-stack's node-exporter, for example). `privileged` effectively disables enforcement."
+  type        = string
+  default     = "baseline"
+
+  validation {
+    condition     = contains(["privileged", "baseline", "restricted"], var.namespace_pod_security_level)
+    error_message = "namespace_pod_security_level must be one of: privileged, baseline, restricted."
+  }
+}
+
+variable "enable_namespace_limits" {
+  description = "Apply a default `ResourceQuota` and `LimitRange` to each module-managed namespace. Disable only if you enforce quotas out-of-band."
+  type        = bool
+  default     = true
+}
+
 variable "namespace" {
   description = "Kubernetes namespace for the demo workload"
   type        = string
