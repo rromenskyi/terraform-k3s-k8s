@@ -24,17 +24,25 @@ Platform components included:
 - Automatic namespace provisioning
 - Demo `ops` StatefulSet exercising the built-in `local-path-provisioner`
 
-## First-Time Bootstrap (two-phase apply)
+## Consumer Provider Wiring
 
-The `kubernetes` provider errors during plan when its `config_path` points to a file that doesn't exist yet. On the first apply, bootstrap the cluster before planning the rest:
+Downstream `kubernetes` and `helm` providers in the consuming root stack **must** be wired through `config_path` — not inline `host`/`client_certificate`/`cluster_ca_certificate` attributes — because the cluster's certs are only materialized after the `null_resource.k3s_install` provisioner runs:
 
-```bash
-terraform init
-terraform apply -target=null_resource.k3s_install
-terraform apply
+```hcl
+provider "kubernetes" {
+  config_path = module.k3s.kubeconfig_path
+}
+
+provider "helm" {
+  kubernetes {
+    config_path = module.k3s.kubeconfig_path
+  }
+}
 ```
 
-Subsequent applies don't need the `-target` hop.
+`kubeconfig_path` is a static string known at plan time; `config_path` is opened lazily at resource-apply time, by which point the installer has written the file. This makes a **single-phase** `terraform apply` work against a cold state.
+
+If you wire inline cert attributes instead, you inherit a chicken-and-egg on the first apply and will need a two-phase `-target=null_resource.k3s_install` bootstrap — don't do that.
 
 ## Quick Start
 
@@ -42,7 +50,6 @@ Subsequent applies don't need the `-target` hop.
 cd examples/demo
 # Edit main.tf to set ssh_user, ssh_private_key_path, and letsencrypt_email
 terraform init
-terraform apply -target=module.k3s.null_resource.k3s_install
 terraform apply
 ```
 

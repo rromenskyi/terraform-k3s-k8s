@@ -1,16 +1,14 @@
 # k3s cluster bootstrap.
 #
 # Installs k3s on the host reachable via SSH (127.0.0.1 by default for a local
-# install). Kubeconfig is fetched back to ${path.root} so the kubernetes and
-# helm providers can point at it via `config_path`, which is lazy and tolerates
-# the file not yet existing at plan time for non-cluster-api resources.
+# install). Kubeconfig is fetched back to ${path.root}/.terraform/ so the
+# kubernetes and helm providers — both this module's and the consumer's —
+# can point at it via `config_path`, which is opened lazily at resource-apply
+# time and therefore does not need the file to exist during plan.
 #
-# First-time bootstrap requires two phases to work around the provider
-# chicken-and-egg problem (the kubernetes provider errors if its kubeconfig
-# does not exist yet):
-#
-#   terraform apply -target=null_resource.k3s_install
-#   terraform apply
+# Single-phase `terraform apply` works from a cold state. Do not wire
+# downstream providers through inline host/cert attributes; that reintroduces
+# the two-phase `-target=null_resource.k3s_install` problem.
 
 locals {
   kubeconfig_path = "${path.root}/.terraform/k3s-${var.cluster_name}.kubeconfig"
