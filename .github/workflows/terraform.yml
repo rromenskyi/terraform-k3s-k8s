@@ -40,9 +40,10 @@ jobs:
 
     - name: Check for terraform-docs changes
       run: |
-        if [[ -n $(git status --porcelain README.md) ]]; then
-          echo "README.md needs to be updated with terraform-docs. Please run terraform-docs locally."
-          git diff README.md
+        git update-index --refresh >/dev/null 2>&1 || true
+        if ! git diff --quiet --exit-code -- README.md; then
+          echo "README.md content differs from terraform-docs output. Please run terraform-docs locally."
+          git diff -- README.md
           exit 1
         fi
         echo "Documentation is up to date."
