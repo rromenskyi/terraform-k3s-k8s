@@ -85,20 +85,32 @@ resource "null_resource" "k3s_install" {
   }
 
   # Fetch kubeconfig locally and rewrite the server address for non-loopback hosts.
+  # Values flow through `environment` rather than HCL string interpolation so
+  # a path, host, or user containing shell metacharacters cannot break the
+  # script. HCL heredocs interpolate `${...}` but leave `$VAR` literal, so
+  # the bash variables below are not touched by Terraform.
   provisioner "local-exec" {
     interpreter = ["bash", "-c"]
-    command     = <<-EOT
+    environment = {
+      KUBECONFIG_PATH = self.triggers.kubeconfig_path
+      SSH_KEY         = self.triggers.ssh_key_path
+      SSH_HOST        = self.triggers.ssh_host
+      SSH_PORT        = tostring(self.triggers.ssh_port)
+      SSH_USER        = self.triggers.ssh_user
+    }
+    command = <<-EOT
       set -euo pipefail
-      mkdir -p "$(dirname '${self.triggers.kubeconfig_path}')"
-      ssh -i '${self.triggers.ssh_key_path}' -p '${self.triggers.ssh_port}' \
+      umask 077
+      mkdir -p "$(dirname "$KUBECONFIG_PATH")"
+      ssh -i "$SSH_KEY" -p "$SSH_PORT" \
           -o StrictHostKeyChecking=accept-new \
-          '${self.triggers.ssh_user}@${self.triggers.ssh_host}' \
-          'sudo cat /etc/rancher/k3s/k3s.yaml' > '${self.triggers.kubeconfig_path}'
-      case '${self.triggers.ssh_host}' in
+          "$SSH_USER@$SSH_HOST" \
+          'sudo cat /etc/rancher/k3s/k3s.yaml' > "$KUBECONFIG_PATH"
+      case "$SSH_HOST" in
         127.0.0.1|localhost) ;;
-        *) sed -i "s#server: https://127.0.0.1:6443#server: https://${self.triggers.ssh_host}:6443#" '${self.triggers.kubeconfig_path}' ;;
+        *) sed -i "s#server: https://127.0.0.1:6443#server: https://$SSH_HOST:6443#" "$KUBECONFIG_PATH" ;;
       esac
-      chmod 600 '${self.triggers.kubeconfig_path}'
+      chmod 600 "$KUBECONFIG_PATH"
     EOT
   }
 
@@ -119,7 +131,10 @@ resource "null_resource" "k3s_install" {
   provisioner "local-exec" {
     when        = destroy
     interpreter = ["bash", "-c"]
-    command     = "rm -f '${self.triggers.kubeconfig_path}'"
+    environment = {
+      KUBECONFIG_PATH = self.triggers.kubeconfig_path
+    }
+    command = "rm -f \"$KUBECONFIG_PATH\""
   }
 }
 
