@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- `null_resource.k3s_install` triggers no longer include the rendered install command. Editing `service_cidr`, `pod_cidr`, `kubernetes_version`, `k3s_channel`, `k3s_disable`, or `k3s_extra_args` no longer silently destroys and reinstalls the live cluster on the next apply. Reshaping the install now requires an explicit `terraform taint` on the `null_resource`.
+
 ## [0.1.0] - 2026-04-18
 
 **Status: alpha.** Sibling module to `terraform-minikube-k8s`, same platform layer (Traefik, cert-manager, kube-prometheus-stack, namespaces, demo ops StatefulSet) on top of a k3s cluster bootstrapped via SSH.

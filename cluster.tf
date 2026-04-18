@@ -40,9 +40,21 @@ locals {
 }
 
 resource "null_resource" "k3s_install" {
+  # `triggers` are intentionally identity- and access-only. `install_command`,
+  # which includes CIDRs / `kubernetes_version` / `k3s_channel` / extra flags,
+  # is DELIBERATELY omitted — if it were captured here, editing any of those
+  # variables would silently destroy and reinstall the cluster on the next
+  # apply, wiping every workload. Reshaping the install (version bump, CIDR
+  # change, flag toggle) therefore requires an explicit intent:
+  #
+  #     terraform taint module.<name>.null_resource.k3s_install
+  #     terraform apply
+  #
+  # Only `cluster_name` acts as true identity here. The SSH access fields
+  # must be in `triggers` so the destroy-time provisioner can still reach the
+  # host after the variables are no longer directly accessible.
   triggers = {
     cluster_name    = var.cluster_name
-    install_command = local.k3s_install_command
     ssh_host        = var.ssh_host
     ssh_port        = var.ssh_port
     ssh_user        = var.ssh_user
@@ -59,11 +71,13 @@ resource "null_resource" "k3s_install" {
     timeout     = "2m"
   }
 
-  # Install k3s server and wait until the API responds.
+  # Install k3s server and wait until the API responds. The create-time
+  # provisioner can reference locals directly; only destroy-time provisioners
+  # are restricted to `self.*`.
   provisioner "remote-exec" {
     inline = [
       "set -euo pipefail",
-      self.triggers.install_command,
+      local.k3s_install_command,
       # Installer returns once systemd unit is active; give the apiserver a moment.
       "until sudo test -s /etc/rancher/k3s/k3s.yaml; do sleep 1; done",
       "sudo k3s kubectl wait --for=condition=Ready node --all --timeout=120s",
