@@ -103,8 +103,14 @@ resource "null_resource" "k3s_install" {
   }
 
   # Run the official k3s uninstaller on destroy, then drop the local kubeconfig.
+  # `on_failure = continue` is mandatory here: if the target host is offline
+  # or the SSH identity has rotated, a blocking destroy would hang for the
+  # connection timeout and then fail, leaving the state stuck. Continue on
+  # failure so that `terraform destroy` always finishes; operators can clean
+  # up a stranded k3s install on the host manually if needed.
   provisioner "remote-exec" {
-    when = destroy
+    when       = destroy
+    on_failure = continue
     inline = [
       "if [ -x /usr/local/bin/k3s-uninstall.sh ]; then sudo /usr/local/bin/k3s-uninstall.sh; fi",
     ]
