@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- Pod Security Standards labels (`enforce`/`audit`/`warn`) applied to every module-managed namespace via the new `namespace_pod_security_level` variable (default: `baseline`)
+- Default `kubernetes_resource_quota_v1` (4/8 CPU requests/limits, 8Gi/16Gi memory, 50 pods) and `kubernetes_limit_range_v1` (100m/128Mi request, 500m/512Mi limit per container) applied to each module-managed namespace. Gated by the new `enable_namespace_limits` variable (default: `true`)
+- `ops` StatefulSet now runs with a hardened `security_context`: `runAsNonRoot`, UID/GID 1000, `readOnlyRootFilesystem`, all Linux capabilities dropped, `RuntimeDefault` seccomp profile, and bounded `resources.requests`/`limits` — i.e., compatible with `restricted` PodSecurity
+
 ### Fixed
 - `null_resource.k3s_install` triggers no longer include the rendered install command. Editing `service_cidr`, `pod_cidr`, `kubernetes_version`, `k3s_channel`, `k3s_disable`, or `k3s_extra_args` no longer silently destroys and reinstalls the live cluster on the next apply. Reshaping the install now requires an explicit `terraform taint` on the `null_resource`.
 - Destroy-time `remote-exec` provisioner now uses `on_failure = continue`, so `terraform destroy` completes even when the target host is unreachable or the SSH identity has rotated. Previously the provisioner blocked for the connection timeout and then failed, leaving state stuck.
