@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- `cluster_distribution` output (value: `"k3s"`) lets sibling-module consumers programmatically branch on which distribution is active without hardcoding the source path
 - `base_domain` variable (default: `"localhost"`). Traefik dashboard and Grafana hostnames are now derived as `traefik.<base_domain>` and `grafana.<base_domain>` instead of hardcoded `*.localhost`. Also surfaces a new `traefik_dashboard_url` output.
 - `ops_storage_class_name` variable pins the StorageClass used by the ops StatefulSet's PVC (default: `"local-path"`, matching k3s' built-in local-path-provisioner)
 - Pod Security Standards labels (`enforce`/`audit`/`warn`) applied to every module-managed namespace via the new `namespace_pod_security_level` variable (default: `baseline`)

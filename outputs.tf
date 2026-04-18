@@ -3,6 +3,11 @@ output "cluster_name" {
   value       = var.cluster_name
 }
 
+output "cluster_distribution" {
+  description = "Which Kubernetes distribution this module provisions. Lets sibling-module consumers branch on distribution programmatically instead of hardcoding the source path."
+  value       = "k3s"
+}
+
 output "cluster_host" {
   description = "Kubernetes API server URL"
   value       = local.kubeconfig.host

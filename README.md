@@ -6,6 +6,15 @@
 
 This module is designed for a Terraform-first workflow: Terraform bootstraps k3s on the target host (local loopback by default) and then converges the platform services on top of it.
 
+### Signature compatibility with `terraform-minikube-k8s`
+
+The two modules share the outputs a consumer typically reads — `cluster_host`, `client_certificate`, `client_key`, `cluster_ca_certificate`, `kubeconfig_path`, `grafana_credentials`, `grafana_url`, `traefik_dashboard_url`, `ingress_class`, `cluster_distribution`, and more — so swapping the `source =` path in a root stack's `module "platform"` block does not force changes downstream.
+
+Two intentional, distribution-specific differences remain:
+
+- **`addons` (minikube) vs `k3s_disabled_components` (k3s).** minikube enables addons; k3s disables baked-in components. The concepts are inverses, not synonyms, so they carry different names.
+- **`kubeconfig_path` semantics.** minikube's module reports `~/.kube/config` (the canonical file that `minikube start` writes into), while this module reports an isolated `${path.root}/.terraform/k3s-<cluster_name>.kubeconfig` it fetches itself. For provider wiring via `config_path`, both work; for other tooling, pick the one that matches your workflow.
+
 ## Operating Model
 
 - Terraform is the entrypoint for cluster lifecycle and platform rollout.
@@ -197,6 +206,7 @@ No modules.
 | <a name="output_client_certificate"></a> [client\_certificate](#output\_client\_certificate) | Client certificate (PEM) for authentication |
 | <a name="output_client_key"></a> [client\_key](#output\_client\_key) | Client key (PEM) for authentication |
 | <a name="output_cluster_ca_certificate"></a> [cluster\_ca\_certificate](#output\_cluster\_ca\_certificate) | Cluster CA certificate (PEM) |
+| <a name="output_cluster_distribution"></a> [cluster\_distribution](#output\_cluster\_distribution) | Which Kubernetes distribution this module provisions. Lets sibling-module consumers branch on distribution programmatically instead of hardcoding the source path. |
 | <a name="output_cluster_host"></a> [cluster\_host](#output\_cluster\_host) | Kubernetes API server URL |
 | <a name="output_cluster_name"></a> [cluster\_name](#output\_cluster\_name) | Name of the created k3s cluster |
 | <a name="output_dns_ip"></a> [dns\_ip](#output\_dns\_ip) | CoreDNS IP address |
