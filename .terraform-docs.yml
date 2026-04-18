@@ -1,0 +1,30 @@
+---
+formatter: markdown table
+output:
+  file: README.md
+  mode: inject
+sort:
+  enabled: true
+  by: name
+settings:
+  anchor: true
+  color: false
+  default: true
+  description: true
+  escape: true
+  hide: []
+  html: false
+  indent: 2
+  required: true
+  sensitive: true
+  type: true
+footer: |
+  ---
+
+  **Built for Terraform-first local Kubernetes platform bootstrap on k3s.**
+
+  See [CHANGELOG.md](CHANGELOG.md) for detailed version history.
+header: |
+  # terraform-k3s-k8s
+
+  **A local Kubernetes platform module powered by Terraform and k3s.**
