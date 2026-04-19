@@ -86,8 +86,21 @@ resource "null_resource" "k3s_install" {
     inline = [
       "set -euo pipefail",
       var.install_k3s ? local.k3s_install_command : "echo 'install_k3s=false; adopting pre-installed k3s on this host'",
-      # Installer returns once systemd unit is active; give the apiserver a moment.
+      # The installer returns as soon as the systemd unit is active, but the
+      # API server and kubelet need a few more seconds to come up. There are
+      # three distinct readiness milestones — wait for each one in order:
+      #
+      #   1. Kubeconfig written: `/etc/rancher/k3s/k3s.yaml` is the first
+      #      artifact the API server produces on start.
       "until sudo test -s /etc/rancher/k3s/k3s.yaml; do sleep 1; done",
+      #   2. Node registered with the API. `kubectl wait` with `--all` does
+      #      NOT wait for resources to *exist* — if the node has not yet
+      #      registered, it immediately errors out with "no matching
+      #      resources found" and exits 1, failing the provisioner. Poll the
+      #      node list first so that, by the time we call `kubectl wait`,
+      #      there is at least one Node to wait on.
+      "timeout 120 bash -c 'until sudo k3s kubectl get nodes -o name 2>/dev/null | grep -q .; do sleep 2; done'",
+      #   3. Node has the Ready condition true.
       "sudo k3s kubectl wait --for=condition=Ready node --all --timeout=120s",
     ]
   }
