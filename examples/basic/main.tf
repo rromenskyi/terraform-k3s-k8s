@@ -2,41 +2,31 @@ terraform {
   required_version = ">= 1.5.0"
 }
 
+# Minimal k3s cluster bootstrap. The module writes a kubeconfig to
+# `${path.root}/.terraform/k3s-<cluster_name>.kubeconfig` and exposes it as
+# `module.k3s.kubeconfig_path`. The addon layer (Traefik, cert-manager,
+# kube-prometheus-stack, ...) lives in the sibling `terraform-k8s-addons`
+# module — compose it on top by consuming `kubeconfig_path`.
 module "k3s" {
   source = "../../"
 
-  cluster_name = "my-dev-cluster"
+  cluster_name = "dev"
 
-  # Local bootstrap: SSH into this machine (loopback).
+  # Local bootstrap — SSH into this machine over loopback. Point at a remote
+  # host by flipping ssh_host.
   ssh_host             = "127.0.0.1"
   ssh_user             = "dev"
   ssh_private_key_path = "~/.ssh/id_ed25519"
-
-  create_ops_workload = true
-  ops_image           = "nginx:alpine"
-  namespace           = "ops"
-
-  # 100.64.0.0/10 CGNAT range avoids conflicts with home/office networks.
-  service_cidr = "100.64.0.0/13"
-  pod_cidr     = "100.72.0.0/13"
-  dns_ip       = "100.64.0.10"
-
-  namespaces     = ["ops", "monitoring", "apps"]
-  enable_traefik = true
 }
 
 output "kubeconfig_path" {
   value = module.k3s.kubeconfig_path
 }
 
-output "export_kubeconfig_cmd" {
-  value = module.k3s.kubeconfig_command
-}
-
 output "cluster_info" {
   value = {
-    name    = module.k3s.cluster_name
-    host    = module.k3s.cluster_host
-    ops_pod = module.k3s.ops_statefulset_name
+    name         = module.k3s.cluster_name
+    distribution = module.k3s.cluster_distribution
+    host         = module.k3s.cluster_host
   }
 }
