@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.1] - 2026-04-18
+
+### Fixed
+- `null_resource.k3s_install` remote-exec no longer races the API server during first apply. Previously the provisioner ran `kubectl wait --for=condition=Ready node --all` immediately after the installer returned, but `kubectl wait --all` does not wait for resources to *exist* — on a fresh install the node had not yet registered with the API server, so kubectl exited with `error: no matching resources found` and status 1, failing the provisioner and leaving the cluster running but unmanaged. The wait is now staged: (1) kubeconfig file appears, (2) at least one Node shows up in the API (polled with a 120s timeout), (3) `kubectl wait --for=condition=Ready` runs. Fixes single-phase apply on cold hosts.
+
 ## [0.2.0] - 2026-04-18
 
 ### Added
