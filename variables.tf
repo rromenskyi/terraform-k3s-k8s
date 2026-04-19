@@ -3,7 +3,7 @@
 # --------------------------------------------------------------------------
 
 variable "cluster_name" {
-  description = "Logical name of the k3s cluster (used in labels and kubeconfig context)"
+  description = "Logical name of the k3s cluster (used in labels and the kubeconfig filename)"
   type        = string
   default     = "tf-local"
 
@@ -20,13 +20,13 @@ variable "kubernetes_version" {
 }
 
 variable "k3s_channel" {
-  description = "k3s release channel (stable, latest, v1.31, etc). Only used when kubernetes_version is empty."
+  description = "k3s release channel (stable, latest, v1.31, etc.). Only used when kubernetes_version is empty."
   type        = string
   default     = "stable"
 }
 
 variable "k3s_disable" {
-  description = "List of built-in k3s components to disable. `traefik` is always disabled by this module because Traefik is managed via Helm."
+  description = "List of built-in k3s components to disable. `traefik` is always disabled by this module because the ingress controller is managed by the sibling `terraform-k8s-addons` module."
   type        = list(string)
   default     = ["traefik"]
 }
@@ -110,128 +110,4 @@ variable "cni" {
     condition     = contains(["flannel", "none"], var.cni)
     error_message = "cni must be one of: flannel, none."
   }
-}
-
-# --------------------------------------------------------------------------
-# Platform add-ons
-# --------------------------------------------------------------------------
-
-variable "namespaces" {
-  description = "Additional namespaces to create"
-  type        = list(string)
-  default     = ["ops", "monitoring"]
-}
-
-variable "namespace_pod_security_level" {
-  description = "Pod Security Standards level applied to module-managed namespaces (enforce + audit + warn). `baseline` is a safe default for most workloads. `restricted` is the strictest and may break Helm charts that require privileged pods (kube-prometheus-stack's node-exporter, for example). `privileged` effectively disables enforcement."
-  type        = string
-  default     = "baseline"
-
-  validation {
-    condition     = contains(["privileged", "baseline", "restricted"], var.namespace_pod_security_level)
-    error_message = "namespace_pod_security_level must be one of: privileged, baseline, restricted."
-  }
-}
-
-variable "enable_namespace_limits" {
-  description = "Apply a default `ResourceQuota` and `LimitRange` to each module-managed namespace. Disable only if you enforce quotas out-of-band."
-  type        = bool
-  default     = true
-}
-
-variable "namespace" {
-  description = "Kubernetes namespace for the demo workload"
-  type        = string
-  default     = "default"
-}
-
-variable "base_domain" {
-  description = "Base domain used to derive default hostnames for Traefik dashboard (`traefik.<base>`) and Grafana (`grafana.<base>`). Defaults to `localhost` for local k3s usage; set to a real domain (e.g. `dev.example.com`) for remote access."
-  type        = string
-  default     = "localhost"
-
-  validation {
-    condition     = can(regex("^[a-z0-9]([a-z0-9.-]*[a-z0-9])?$", var.base_domain))
-    error_message = "base_domain must be a valid DNS label sequence (lowercase alphanumerics, dots, hyphens)."
-  }
-}
-
-variable "enable_traefik" {
-  description = "Deploy Traefik as Ingress controller via Helm"
-  type        = bool
-  default     = true
-}
-
-variable "enable_traefik_dashboard" {
-  description = "Expose the Traefik dashboard via IngressRoute"
-  type        = bool
-  default     = true
-}
-
-variable "traefik_version" {
-  description = "Traefik Helm chart version"
-  type        = string
-  default     = "34.2.0"
-}
-
-variable "enable_cert_manager" {
-  description = "Deploy cert-manager + Let's Encrypt ClusterIssuers"
-  type        = bool
-  default     = true
-}
-
-variable "cert_manager_version" {
-  description = "cert-manager Helm chart version"
-  type        = string
-  default     = "v1.16.1"
-}
-
-variable "kube_prometheus_stack_version" {
-  description = "kube-prometheus-stack Helm chart version"
-  type        = string
-  default     = "70.0.0"
-}
-
-variable "letsencrypt_email" {
-  description = "Email address registered with Let's Encrypt (required when cert-manager is enabled). Must be a real mailbox — Let's Encrypt rate-limits RFC-2606 reserved domains (example.com, example.org, example.net, example.invalid, test, localhost) and does not issue certificates to them."
-  type        = string
-  default     = "admin@example.com"
-
-  validation {
-    condition     = can(regex("^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$", var.letsencrypt_email))
-    error_message = "letsencrypt_email must be a valid email address."
-  }
-
-  validation {
-    condition     = !can(regex("@(example\\.(com|org|net|invalid)|test|localhost)$", var.letsencrypt_email))
-    error_message = "letsencrypt_email must not use an RFC-2606 reserved domain (example.com, example.org, example.net, example.invalid, test, localhost) — Let's Encrypt rejects those."
-  }
-}
-
-variable "enable_monitoring" {
-  description = "Deploy Prometheus + Grafana via kube-prometheus-stack"
-  type        = bool
-  default     = true
-}
-
-# --------------------------------------------------------------------------
-# Demo workload
-# --------------------------------------------------------------------------
-
-variable "create_ops_workload" {
-  description = "Whether to create the ops StatefulSet demo workload"
-  type        = bool
-  default     = true
-}
-
-variable "ops_image" {
-  description = "Container image for the ops demo workload"
-  type        = string
-  default     = "alpine:3.20"
-}
-
-variable "ops_storage_class_name" {
-  description = "StorageClass used by the ops StatefulSet's PVC. Default matches k3s' built-in `local-path-provisioner`. Set to `null` to rely on the cluster default StorageClass, or pin to a class you install yourself."
-  type        = string
-  default     = "local-path"
 }

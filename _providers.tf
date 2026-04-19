@@ -1,14 +1,7 @@
-# Providers consume the fetched kubeconfig via `config_path`, which is lazy:
-# the file does not have to exist at plan time, only when API calls are made.
-# Inline host/cert attributes would force the data source to resolve during
-# plan and break first-time bootstrap.
-
-provider "kubernetes" {
-  config_path = local.kubeconfig_path
-}
-
-provider "helm" {
-  kubernetes {
-    config_path = local.kubeconfig_path
-  }
-}
+# After the addon layer was extracted into the sibling `terraform-k8s-addons`
+# module, this module no longer creates any Kubernetes or Helm resources —
+# it only runs an SSH `null_resource` installer and reads the kubeconfig
+# file with `local_sensitive_file`. Neither needs the kubernetes/helm
+# providers, so they are no longer declared here. The consumer (typically
+# `terraform-k8s-addons`) configures those providers using `kubeconfig_path`
+# from this module's outputs.
