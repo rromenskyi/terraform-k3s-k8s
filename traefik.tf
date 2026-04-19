@@ -2,11 +2,15 @@ resource "helm_release" "traefik" {
   for_each   = var.enable_traefik ? toset(["enabled"]) : toset([])
   depends_on = [null_resource.k3s_install]
 
-  name             = "traefik"
-  repository       = "https://traefik.github.io/charts"
-  chart            = "traefik"
-  version          = var.traefik_version
-  namespace        = "traefik"
+  name       = "traefik"
+  repository = "https://traefik.github.io/charts"
+  chart      = "traefik"
+  version    = var.traefik_version
+  # Match the sibling `terraform-minikube-k8s` module: the ingress controller
+  # lives in its role-named namespace `ingress-controller` rather than
+  # `traefik` so downstream stacks (platform cheatsheets, NetworkPolicies,
+  # docs) can address it identically regardless of distribution.
+  namespace        = "ingress-controller"
   create_namespace = true
 
   set {

@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.2] - 2026-04-18
+
+### Fixed
+- cert-manager `helm_release` now passes `commonLabels` under `global.` instead of at the root of the chart values. The chart's `values.schema.json` (v1.14+) only whitelists `commonLabels` under `$defs.helm-values.global.properties`, so a root-level value produced `Additional property commonLabels is not allowed` and failed the release at plan time. Our labels now reach the cert-manager objects as intended.
+
+### Changed
+- Traefik `helm_release` namespace aligned with the sibling `terraform-minikube-k8s`: `traefik` → `ingress-controller`. Matching namespaces across distributions means platform cheatsheets, NetworkPolicies, and docs can address the ingress controller uniformly.
+
 ## [0.2.1] - 2026-04-18
 
 ### Fixed
