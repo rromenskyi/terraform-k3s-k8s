@@ -38,6 +38,26 @@ locals {
   ]))
 
   k3s_install_command = "curl -sfL https://get.k3s.io | ${local.k3s_install_env} sh -s -"
+
+  # Containerd registries.yaml is only written when `var.install_k3s = true`
+  # AND the operator supplied at least one mirror — on an adopted k3s the
+  # file is owned by whatever tooling set the node up, and an empty mirror
+  # map means the operator opted into direct-only pulls. The file must land
+  # on disk BEFORE the k3s systemd unit starts for the first time, because
+  # containerd reads its registry configuration only at startup.
+  registries_yaml = length(var.registry_mirrors) > 0 ? yamlencode({
+    mirrors = {
+      for host, endpoints in var.registry_mirrors : host => {
+        endpoint = endpoints
+      }
+    }
+  }) : ""
+  registries_yaml_b64 = base64encode(local.registries_yaml)
+  write_registries_yaml_cmd = join(" ", [
+    "echo '${local.registries_yaml_b64}'",
+    "| base64 -d",
+    "| sudo tee /etc/rancher/k3s/registries.yaml > /dev/null",
+  ])
 }
 
 resource "null_resource" "k3s_install" {
@@ -94,6 +114,16 @@ resource "null_resource" "k3s_install" {
     # not yet written its subnet file.
     inline = concat([
       "set -euo pipefail",
+
+      #   0. Containerd registry mirrors. Landed on disk BEFORE the k3s
+      #      systemd unit starts for the first time, so containerd reads
+      #      the mirror list at startup and routes e.g. `docker.io` pulls
+      #      through `mirror.gcr.io` without the slow/flaky direct path to
+      #      `registry-1.docker.io`. No-op when `var.install_k3s = false`
+      #      (adopted cluster) or when `var.registry_mirrors = {}`.
+      var.install_k3s && local.registries_yaml != "" ? "sudo mkdir -p /etc/rancher/k3s" : "true",
+      var.install_k3s && local.registries_yaml != "" ? local.write_registries_yaml_cmd : "true",
+
       var.install_k3s ? local.k3s_install_command : "echo 'install_k3s=false; adopting pre-installed k3s on this host'",
 
       #   1. Kubeconfig written — `/etc/rancher/k3s/k3s.yaml` is the first

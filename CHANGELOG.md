@@ -5,6 +5,11 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.1] - 2026-04-18
+
+### Added
+- `var.registry_mirrors` (type `map(list(string))`, default `{ "docker.io" = ["https://mirror.gcr.io"] }`). The map is rendered into `/etc/rancher/k3s/registries.yaml` before the k3s systemd unit starts for the first time, so containerd reads the mirror list at startup and routes Docker Hub pulls through Google's public pull-through cache. Addresses observed `ImagePullBackOff` on `alpine:3.20`, `grafana/grafana:11.5.2`, and `kiwigrid/k8s-sidecar` due to residential-ISP TLS handshake timeouts against `registry-1.docker.io`. Set to `{}` to disable mirroring entirely (direct pulls). Operators with their own pull-through cache (Harbor, Zot, Sonatype Nexus) can add entries for `quay.io`, `ghcr.io`, etc. — no public mirrors exist for those registries. Ignored when `install_k3s = false` because containerd on an adopted cluster has already read its configuration.
+
 ## [0.3.0] - 2026-04-18
 
 ### Added
