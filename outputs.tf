@@ -4,7 +4,7 @@ output "cluster_name" {
 }
 
 output "cluster_distribution" {
-  description = "Which Kubernetes distribution this module provisions. Lets sibling-module consumers branch on distribution programmatically instead of hardcoding the source path."
+  description = "Which Kubernetes distribution this module provisions. Lets consumer modules (e.g. `terraform-k8s-addons`) branch on distribution programmatically instead of hardcoding a source path."
   value       = "k3s"
 }
 
@@ -32,8 +32,12 @@ output "cluster_ca_certificate" {
 }
 
 output "kubeconfig_path" {
-  description = "Local path to the fetched kubeconfig file for this cluster"
+  description = "Local path to the fetched kubeconfig file for this cluster. Wire this into `module \"addons\" { kubeconfig_path = module.k8s.kubeconfig_path }` in the platform root. The explicit `depends_on` makes downstream consumers wait for the kubeconfig file to actually land on disk: the underlying value is a plan-time-known string, so without this dep the Terraform graph lets addon-layer resources start racing the SSH-driven `null_resource.k3s_install` and they hit `connection refused` before the k3s API server is up."
   value       = local.kubeconfig_path
+  depends_on = [
+    null_resource.k3s_install,
+    data.local_sensitive_file.kubeconfig,
+  ]
 }
 
 output "kubeconfig_command" {
@@ -61,63 +65,12 @@ output "k3s_disabled_components" {
   value       = local.k3s_effective_disable
 }
 
-output "namespaces" {
-  description = "Created namespaces"
-  value       = [for ns in kubernetes_namespace_v1.namespaces : ns.metadata[0].name]
-}
-
-output "ops_statefulset_name" {
-  description = "Name of the ops StatefulSet (if created)"
-  value       = var.create_ops_workload ? kubernetes_stateful_set_v1.ops["enabled"].metadata[0].name : null
-}
-
-output "traefik_enabled" {
-  description = "Whether Traefik is enabled"
-  value       = var.enable_traefik
-}
-
-output "cert_manager_enabled" {
-  description = "Whether cert-manager is enabled"
-  value       = var.enable_cert_manager
-}
-
-output "monitoring_enabled" {
-  description = "Whether Prometheus + Grafana stack is enabled"
-  value       = var.enable_monitoring
-}
-
-output "ingress_class" {
-  description = "IngressClass name (Traefik)"
-  value       = var.enable_traefik ? "traefik" : null
-}
-
-output "grafana_url" {
-  description = "Grafana URL (resolves against the Traefik ingress; add it to /etc/hosts or your DNS)"
-  value       = var.enable_monitoring ? "https://grafana.${var.base_domain}" : null
-}
-
-output "grafana_credentials" {
-  description = "Grafana login credentials (password is randomly generated and kept in Terraform state)"
-  value = var.enable_monitoring ? {
-    url      = "https://grafana.${var.base_domain}"
-    username = "admin"
-    password = random_password.grafana["enabled"].result
-  } : null
-  sensitive = true
-}
-
-output "traefik_dashboard_url" {
-  description = "Traefik dashboard URL (if enabled)"
-  value       = var.enable_traefik && var.enable_traefik_dashboard ? "http://traefik.${var.base_domain}" : null
-}
-
 output "access_instructions" {
   description = "Helpful commands to interact with the cluster"
   value = {
     export_kubeconfig = "export KUBECONFIG='${local.kubeconfig_path}'"
     get_nodes         = "kubectl --kubeconfig '${local.kubeconfig_path}' get nodes -o wide"
     get_pods          = "kubectl --kubeconfig '${local.kubeconfig_path}' get pods -A"
-    get_ingress       = var.enable_traefik ? "kubectl --kubeconfig '${local.kubeconfig_path}' get ingress -A" : null
     k3s_logs          = "ssh ${var.ssh_user}@${var.ssh_host} 'sudo journalctl -u k3s -n 200 --no-pager'"
   }
 }

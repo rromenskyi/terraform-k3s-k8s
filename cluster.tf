@@ -13,10 +13,11 @@
 locals {
   kubeconfig_path = "${path.root}/.terraform/k3s-${var.cluster_name}.kubeconfig"
 
-  k3s_effective_disable = distinct(concat(
-    var.enable_traefik ? ["traefik"] : [],
-    var.k3s_disable,
-  ))
+  # k3s ships a built-in Traefik by default; this module always disables it
+  # because the sibling `terraform-k8s-addons` module installs a
+  # Helm-managed Traefik and the two would conflict. Any additional
+  # components the operator wants to disable go through `var.k3s_disable`.
+  k3s_effective_disable = distinct(concat(["traefik"], var.k3s_disable))
 
   k3s_exec_args = join(" ", concat(
     [for c in local.k3s_effective_disable : "--disable=${c}"],
@@ -83,26 +84,44 @@ resource "null_resource" "k3s_install" {
   # run — they verify the pre-installed k3s is actually healthy before the
   # kubeconfig fetch and the rest of the plan proceeds.
   provisioner "remote-exec" {
-    inline = [
+    # The installer returns as soon as the systemd unit is active, but the
+    # API server, kubelet, and CNI need a few more seconds to fully come
+    # up. There are four distinct readiness milestones — wait for each one
+    # in order before the provisioner returns. Missing any of them caused
+    # downstream addon resources to start racing the cluster during
+    # earlier bring-ups: connection refused, "no matching resources
+    # found", or transient `FailedCreatePodSandBox` because flannel had
+    # not yet written its subnet file.
+    inline = concat([
       "set -euo pipefail",
       var.install_k3s ? local.k3s_install_command : "echo 'install_k3s=false; adopting pre-installed k3s on this host'",
-      # The installer returns as soon as the systemd unit is active, but the
-      # API server and kubelet need a few more seconds to come up. There are
-      # three distinct readiness milestones — wait for each one in order:
-      #
-      #   1. Kubeconfig written: `/etc/rancher/k3s/k3s.yaml` is the first
+
+      #   1. Kubeconfig written — `/etc/rancher/k3s/k3s.yaml` is the first
       #      artifact the API server produces on start.
       "until sudo test -s /etc/rancher/k3s/k3s.yaml; do sleep 1; done",
+
       #   2. Node registered with the API. `kubectl wait` with `--all` does
       #      NOT wait for resources to *exist* — if the node has not yet
       #      registered, it immediately errors out with "no matching
-      #      resources found" and exits 1, failing the provisioner. Poll the
-      #      node list first so that, by the time we call `kubectl wait`,
-      #      there is at least one Node to wait on.
+      #      resources found" and exits 1. Poll the node list first so
+      #      that by the time we call `kubectl wait`, there is at least
+      #      one Node to wait on.
       "timeout 120 bash -c 'until sudo k3s kubectl get nodes -o name 2>/dev/null | grep -q .; do sleep 2; done'",
+
       #   3. Node has the Ready condition true.
       "sudo k3s kubectl wait --for=condition=Ready node --all --timeout=120s",
-    ]
+      ], var.cni == "flannel" ? [
+      #   4. Flannel wrote `/run/flannel/subnet.env` — the file kubelet's
+      #      CNI plugin reads to set up pod sandboxes. The kubelet and
+      #      flannel agent come up concurrently, so during the first
+      #      seconds after the node goes Ready the CNI plugin can still
+      #      fail with `failed to load flannel 'subnet.env' file`. Waiting
+      #      here lets the first addon pods create their sandboxes on the
+      #      first try instead of eating a retry backoff cycle. This step
+      #      is skipped when `var.cni = "none"` (operator brings their own
+      #      CNI and is expected to handle readiness themselves).
+      "timeout 60 bash -c 'until sudo test -s /run/flannel/subnet.env; do sleep 1; done'",
+    ] : [])
   }
 
   # Fetch kubeconfig locally and rewrite the server address for non-loopback hosts.

@@ -5,7 +5,17 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [0.3.0] - 2026-04-18
+
+### Added
+- `null_resource.k3s_install` now waits for `/run/flannel/subnet.env` to appear before returning, so downstream addon pods never catch the transient window after the node goes Ready but before flannel writes its CNI state. Removes the first-apply `FailedCreatePodSandBox: failed to load flannel 'subnet.env' file` churn. Gated on `var.cni == "flannel"` — when the operator brings their own CNI (`cni = "none"`), the step is skipped.
+
+### Breaking
+- This release is published as part of the **major v0.3.0** bump: the module no longer ships the addon layer (Traefik, cert-manager, Let's Encrypt issuers, kube-prometheus-stack, PodSecurity-labeled namespaces, demo ops StatefulSet). Those resources moved to the new `terraform-k8s-addons` sibling module and are consumed on top via `module "addons" { kubeconfig_path = module.k8s.kubeconfig_path ... }`. Variables `enable_traefik`, `enable_traefik_dashboard`, `enable_cert_manager`, `enable_monitoring`, `create_ops_workload`, `namespaces`, `namespace`, `namespace_pod_security_level`, `enable_namespace_limits`, `base_domain`, `letsencrypt_email`, `traefik_version`, `cert_manager_version`, `kube_prometheus_stack_version`, `ops_image`, `ops_storage_class_name` were removed; corresponding outputs (`grafana_credentials`, `ingress_class`, `traefik_dashboard_url`, `grafana_url`, `namespaces`, `ops_statefulset_name`, `traefik_enabled`, `cert_manager_enabled`, `monitoring_enabled`) move to `terraform-k8s-addons`. Migrating from v0.2.x: keep your cluster-shape inputs (SSH, CIDRs, `install_k3s`, `k3s_*`) as-is and add a `module "addons"` block with `kubeconfig_path = module.k8s.kubeconfig_path` + the addon flags that used to live on this module.
+
+### Changed
+- `kubeconfig_path` output now carries an explicit `depends_on = [null_resource.k3s_install, data.local_sensitive_file.kubeconfig]` so downstream consumers wait for the kubeconfig file to actually land on disk before making API calls — plan-time-known literal strings otherwise let the Terraform graph schedule addon-layer resources in parallel with the installer and they hit `connection refused`.
+- `k3s_effective_disable` always includes `traefik` (no longer conditional on a nonexistent `enable_traefik` input); k3s's built-in Traefik would always conflict with the Helm-managed Traefik shipped by the addons module.
 
 ## [0.2.2] - 2026-04-18
 
