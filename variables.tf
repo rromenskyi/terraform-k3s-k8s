@@ -111,3 +111,17 @@ variable "cni" {
     error_message = "cni must be one of: flannel, none."
   }
 }
+
+variable "registry_mirrors" {
+  description = <<-EOT
+Containerd registry mirrors written to `/etc/rancher/k3s/registries.yaml` before k3s starts. Each key is the upstream registry host (e.g. `docker.io`); each value is the ordered list of mirror endpoints containerd tries first.
+
+The default routes `docker.io` through Google's public pull-through cache (`mirror.gcr.io`) which is usually significantly faster and more reliable than direct Docker Hub — especially on residential connections where `registry-1.docker.io` TLS handshakes intermittently time out and leave `alpine:3.20`, `grafana/grafana:*`, and similar images stuck in `ImagePullBackOff` for minutes.
+
+Set to `{}` to disable mirroring entirely (direct pulls from upstreams). Ignored when `install_k3s = false`, because containerd on a pre-installed k3s has already read its configuration.
+EOT
+  type        = map(list(string))
+  default = {
+    "docker.io" = ["https://mirror.gcr.io"]
+  }
+}
